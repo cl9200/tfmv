@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Check if the minimum number of arguments were passed
+if [ "$#" -lt 2 ]; then
+    echo "Usage: tfmv include_prefix target_state_path [new_resource_prefix] [plan]"
+    exit 1
+fi
+
+# Assign command line arguments to variables
+include_prefix=$1
+target_state_path=$2
+new_resource_prefix=""
+plan_mode="no"
+
+# Check for optional arguments
+if [ "$#" -ge 3 ]; then
+    if [ "$3" = "plan" ]; then
+        plan_mode="plan"
+    else
+        new_resource_prefix=$3
+        if [ "$#" -eq 4 ] && [ "$4" = "plan" ]; then
+            plan_mode="plan"
+        fi
+    fi
+fi
+
+# List all resources in the current Terraform state
+for resource in $(terraform state list); do
+    # Check if the resource starts with the included prefix
+    if [[ $resource == $include_prefix* ]]; then
+        # Define the new resource name or path with the new prefix
+        new_resource="${new_resource_prefix}${resource#$include_prefix}"
+
+        # Check if plan mode is active
+        if [[ $plan_mode == "plan" ]]; then
+            # Print the terraform state move command
+            echo "terraform state mv -state-out=$target_state_path \"$resource\" \"$new_resource\""
+        else
+            # Perform the terraform state move command
+            terraform state mv -state-out=$target_state_path "$resource" "$new_resource"
+        fi
+    fi
+done
+
